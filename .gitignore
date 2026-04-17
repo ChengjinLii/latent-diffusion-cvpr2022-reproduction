@@ -1,0 +1,64 @@
+# Python/cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Local environments
+.env
+.venv/
+venv/
+env/
+
+# Large model/data artifacts
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.bin
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.npz
+*.npy
+
+# Official/checkpoint download locations
+src/models/**/*.ckpt
+src/models/**/*.zip
+src/models/**/*.pt
+src/models/**/*.pth
+src/models/**/*.safetensors
+reproduction/data/
+
+# Generated samples/logs
+logs/
+outputs/
+samples/
+src/logs/
+src/outputs/
+src/samples/
+
+# LaTeX intermediates
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Prevent accidentally committing nested git metadata.
+src/.git/
