@@ -1,8 +1,13 @@
 # latent-diffusion-cvpr2022-reproduction
 
-本项目用于复现 Rombach 等人在 CVPR 2022 论文 **High-Resolution Image Synthesis with Latent Diffusion Models** 中的一个核心结论：先用感知自编码器把图像压缩到 latent 空间，可以在显著降低表示维度的同时保持较好的图像重建质量，从而为后续 latent diffusion model 降低训练和采样成本。
+本项目用于复现 Rombach 等人在 CVPR 2022 论文 **High-Resolution Image Synthesis with Latent Diffusion Models** 中的核心结论：把扩散模型从像素空间迁移到感知压缩后的 latent 空间，可以在较低计算成本下保持较好的视觉质量。
 
-本次复现重点放在论文的 first-stage compression tradeoff，而不是完整训练大规模扩散模型。实验使用官方 CompVis 代码和官方预训练 KL autoencoder checkpoint，对比 `kl-f4`、`kl-f8`、`kl-f16` 三种压缩率的重建质量、latent 表示大小和推理速度。
+当前复现包含两部分：
+
+- **first-stage compression tradeoff**：使用官方预训练 KL autoencoder，对比 `kl-f4`、`kl-f8`、`kl-f16` 的重建质量、latent 表示大小和吞吐量。
+- **LDM DDIM sampling tradeoff**：使用官方 CelebA-HQ 256 无条件 LDM checkpoint，对比 DDIM steps 为 10、20、50、100、200 时的采样速度和生成样本。
+
+这不是整篇论文的大规模训练复现；它是基于官方源码和官方 checkpoint 的小规模、端到端数值验证。
 
 ## 目录说明
 
@@ -29,42 +34,61 @@ https://github.com/CompVis/latent-diffusion
 
 本目录按普通源码文件纳入本仓库，来源快照对应官方上游 commit `a506df5756472e2ebaf9078affdde2c4f1502cd4`。
 
-其中比较重要的内容包括：
+重要内容包括：
 
 - `src/README.md`：官方项目说明，包含模型 zoo、下载链接和训练/采样命令。
 - `src/environment.yaml`：官方推荐环境配置。
 - `src/ldm/`：Latent Diffusion Models 的核心 Python 模块。
 - `src/configs/`：autoencoder 和 latent diffusion 的官方配置文件。
-- `src/models/first_stage_models/`：first-stage autoencoder 配置与 checkpoint。
+- `src/models/first_stage_models/`：first-stage autoencoder 配置与 checkpoint 放置位置。
+- `src/models/ldm/celeba256/`：CelebA-HQ 256 无条件 LDM 配置与 checkpoint 放置位置。
 - `src/scripts/`：官方采样、下载、inpainting、text-to-image 等脚本。
-- `src/assets/`：官方示例图片；本次快速复现实验默认使用这里的示例图作为输入。
+- `src/assets/`：官方示例图片；autoencoder 快速复现实验默认使用这里的 12 张图片。
 
-本次复现实验下载并解压了三个官方 KL autoencoder checkpoint：
+本次实验本地下载并解压了以下官方 checkpoint：
 
 ```text
 src/models/first_stage_models/kl-f4/model.ckpt
 src/models/first_stage_models/kl-f8/model.ckpt
 src/models/first_stage_models/kl-f16/model.ckpt
+src/models/ldm/celeba256/model.ckpt
 ```
+
+这些 checkpoint 及其 zip 包体积较大，已通过 `.gitignore` 排除，不会上传到 GitHub。
 
 ### `reproduction/`
 
-本次复现代码和数值结果目录。
+复现代码和数值结果目录。
 
-- `reproduction/run_autoencoder_tradeoff.py`：主复现实验脚本。加载官方 KL autoencoder，重建同一批图像，计算 MSE、PSNR、SSIM、latent 表示大小和吞吐量，并生成报告图片。
-- `reproduction/README.md`：复现实验的简要运行说明。
-- `reproduction/results/autoencoder_metrics.csv`：实验结果表格，便于直接查看和导入分析。
-- `reproduction/results/autoencoder_metrics.json`：同一批实验结果的 JSON 格式。
-- `reproduction/third_party/taming_stub/`：一个最小兼容 stub。官方 `ldm.models.autoencoder` 在导入时会引用 `taming` 的 VQ 模块；本次只运行 KL autoencoder，不使用 VQ 模型，因此用该 stub 满足导入依赖。
+- `reproduction/run_autoencoder_tradeoff.py`：加载官方 KL autoencoder，重建同一批图像，计算 MSE、PSNR、SSIM、latent 表示比例和吞吐量，并生成报告图片。
+- `reproduction/run_ldm_sampling_benchmark.py`：加载官方 CelebA-HQ 256 LDM checkpoint，比较不同 DDIM steps 下的采样耗时、吞吐量和生成样本。
+- `reproduction/README.md`：复现实验运行说明。
+- `reproduction/results/autoencoder_metrics.csv`：autoencoder 压缩--重建实验结果。
+- `reproduction/results/autoencoder_metrics.json`：autoencoder 实验 JSON 结果。
+- `reproduction/results/ldm_sampling_benchmark.csv`：LDM DDIM 采样速度实验结果。
+- `reproduction/results/ldm_sampling_benchmark.json`：LDM DDIM 实验 JSON 结果。
+- `reproduction/third_party/taming_stub/`：最小兼容 stub。官方 `ldm.models.autoencoder` 在导入时会引用 `taming` 的 VQ 模块；本次只运行 KL autoencoder，因此用该 stub 满足导入依赖。
+- `reproduction/samples/`：采样脚本生成的单张样本输出目录，已在 `.gitignore` 中排除。
 
-复现实验命令：
+autoencoder 复现实验命令：
 
 ```bash
 cd /data/chengjin/latent-diffusion-cvpr2022-reproduction
-conda run -n DDCSR python reproduction/run_autoencoder_tradeoff.py --device cuda:1 --batch-size 4 --num-images 12
+conda run -n DDCSR python reproduction/run_autoencoder_tradeoff.py \
+  --device cuda:1 --batch-size 4 --num-images 12
 ```
 
-默认实验使用 `src/assets` 中的 12 张官方示例图。脚本也保留了 `--dataset flowers102` 选项，可用于扩大自然图像样本，但本次报告采用的是默认设置。
+LDM DDIM 采样实验命令：
+
+```bash
+cd /data/chengjin/latent-diffusion-cvpr2022-reproduction
+CUDA_VISIBLE_DEVICES=1 conda run -n DDCSR \
+  python reproduction/run_ldm_sampling_benchmark.py \
+  --steps 10 20 50 100 200 --batch-size 4 --eta 0.0 --device cuda
+```
+
+这里使用 `CUDA_VISIBLE_DEVICES=1` 是因为官方 DDIM sampler 内部默认使用 `cuda` 设备；该写法把物理 GPU 1 映射为进程内的 `cuda:0`。
+采样脚本会在推理时切换到 checkpoint 中的 EMA 权重。
 
 ### `reports/`
 
@@ -75,6 +99,8 @@ conda run -n DDCSR python reproduction/run_autoencoder_tradeoff.py --device cuda
 - `reports/FIG/metrics_tradeoff.png`：PSNR 与 latent 表示比例的权衡图。
 - `reports/FIG/reconstruction_grid.png`：输入图像与 `kl-f4`、`kl-f8`、`kl-f16` 重建图的对比拼图。
 - `reports/FIG/ssim_tradeoff.png`：SSIM 随压缩率变化的图。
+- `reports/FIG/ddim_sampling_runtime.png`：DDIM steps 与采样速度关系图。
+- `reports/FIG/ddim_steps_samples.png`：同一初始噪声下不同 DDIM steps 的 CelebA-HQ 生成样本对比。
 
 报告编译命令：
 
@@ -85,7 +111,7 @@ tectonic ldm_reproduction_report.tex
 
 ## 本次复现结果摘要
 
-本次实验在 12 张官方示例图上得到：
+autoencoder 实验在 12 张官方示例图上得到：
 
 | 模型 | latent/像素 | PSNR | SSIM | 吞吐量 |
 |---|---:|---:|---:|---:|
@@ -93,30 +119,42 @@ tectonic ldm_reproduction_report.tex
 | `kl-f8` | 2.08% | 28.33 | 0.985 | 65.95 images/s |
 | `kl-f16` | 2.08% | 27.48 | 0.982 | 90.26 images/s |
 
+LDM DDIM 采样实验每组生成 4 张图，计时包含 latent denoising 和 first-stage decode：
+
+| DDIM steps | 总时间(s) | 单图时间(s/img) | 吞吐量(img/s) | decode 时间(s) |
+|---:|---:|---:|---:|---:|
+| 10 | 0.282 | 0.071 | 14.17 | 0.041 |
+| 20 | 0.474 | 0.119 | 8.44 | 0.041 |
+| 50 | 1.122 | 0.280 | 3.57 | 0.041 |
+| 100 | 2.274 | 0.568 | 1.76 | 0.041 |
+| 200 | 4.389 | 1.097 | 0.91 | 0.041 |
+
 结论与论文主张一致：
 
 - `f=4` 的 mild compression 保真度最好，同时已经把表示规模压缩到像素空间的 6.25%。
-- 更大的下采样因子会进一步提高速度、降低 latent 空间计算量，但会牺牲纹理和边缘细节。
-- 这支持论文采用 latent space 训练 diffusion model 的核心理由：保留主要感知内容，同时显著降低后续生成模型的计算成本。
+- 更大的下采样因子会进一步提高 autoencoder 前向吞吐量、降低 latent 空间表示成本，但会牺牲纹理和边缘细节。
+- DDIM steps 越多，单图采样时间近似线性上升；步数较少时速度快，但视觉结构和局部纹理更不稳定。
+- 这支持论文采用 latent space 训练 diffusion model 的核心理由：保留主要感知内容，同时显著降低后续生成模型的计算成本，并允许通过采样步数调节速度--质量折中。
 
 ## 复现范围和限制
-
-本项目完成的是 first-stage autoencoder 的数值复现，不是整篇论文的完整大规模复现。
 
 已完成：
 
 - 拉取官方源码。
 - 下载官方 `kl-f4`、`kl-f8`、`kl-f16` autoencoder checkpoint。
-- 编写并运行复现实验代码。
-- 生成 CSV/JSON 数值结果。
-- 生成报告图片。
+- 下载官方 CelebA-HQ 256 LDM checkpoint。
+- 编写并运行 autoencoder 压缩--重建实验。
+- 编写并运行 LDM DDIM 采样步数基准实验。
+- 生成 CSV/JSON 数值结果和报告图片。
 - 编写中文 LaTeX 复现报告并编译为 PDF。
+- 更新 `.gitignore`，排除 checkpoint、zip、缓存和采样中间图。
 
 未完成或未纳入本次范围：
 
 - 未训练完整 latent diffusion prior。
 - 未复现 ImageNet class-conditional 的 2M steps 训练。
 - 未复现 text-to-image 的 LAION-400M 大规模训练。
-- 未计算论文级 ImageNet-val rFID；本次使用小样本示例图，因此数值用于验证趋势，而不是严格同分布对比。
+- 未计算论文级 ImageNet-val reconstruction rFID。
+- 未对 CelebA-HQ 生成样本计算 5k/50k FID；当前 DDIM 实验主要验证采样速度趋势并给出定性样本。
 
-如果后续要做更严格的论文级复现，建议下一步使用 ImageNet-val 或 OpenImages validation 子集，扩大到数千张图像，补充 rFID/LPIPS，并进一步复现 `LDM-4` 或 `LDM-8` 的 DDIM 采样 FID。
+后续若要做更严格的论文级复现，建议使用 ImageNet-val、OpenImages validation 或 CelebA-HQ 验证集，扩大到数千张图像，补充 rFID/LPIPS/FID，并进一步复现 `LDM-4` 或 `LDM-8` 的完整采样质量曲线。

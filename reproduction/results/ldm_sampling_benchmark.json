@@ -1,0 +1,72 @@
+[
+  {
+    "model": "celeba256",
+    "ddim_steps": 10,
+    "batch_size": 4,
+    "eta": 0.0,
+    "seed": 20260417,
+    "latent_shape": "3x64x64",
+    "denoise_sec": 0.24160655308514833,
+    "decode_sec": 0.04073655605316162,
+    "total_sec": 0.28234310913830996,
+    "sec_per_image": 0.07058577728457749,
+    "images_per_second": 14.167159992704269,
+    "sample_path": "reproduction/samples/celeba_ddim/celeba_ddim_010.png"
+  },
+  {
+    "model": "celeba256",
+    "ddim_steps": 20,
+    "batch_size": 4,
+    "eta": 0.0,
+    "seed": 20260417,
+    "latent_shape": "3x64x64",
+    "denoise_sec": 0.43292307667434216,
+    "decode_sec": 0.04128834372386336,
+    "total_sec": 0.4742114203982055,
+    "sec_per_image": 0.11855285509955138,
+    "images_per_second": 8.435056238504577,
+    "sample_path": "reproduction/samples/celeba_ddim/celeba_ddim_020.png"
+  },
+  {
+    "model": "celeba256",
+    "ddim_steps": 50,
+    "batch_size": 4,
+    "eta": 0.0,
+    "seed": 20260417,
+    "latent_shape": "3x64x64",
+    "denoise_sec": 1.080947024282068,
+    "decode_sec": 0.040993048809468746,
+    "total_sec": 1.1219400730915368,
+    "sec_per_image": 0.2804850182728842,
+    "images_per_second": 3.5652528115676354,
+    "sample_path": "reproduction/samples/celeba_ddim/celeba_ddim_050.png"
+  },
+  {
+    "model": "celeba256",
+    "ddim_steps": 100,
+    "batch_size": 4,
+    "eta": 0.0,
+    "seed": 20260417,
+    "latent_shape": "3x64x64",
+    "denoise_sec": 2.233203993178904,
+    "decode_sec": 0.040764604695141315,
+    "total_sec": 2.2739685978740454,
+    "sec_per_image": 0.5684921494685113,
+    "images_per_second": 1.7590392425557844,
+    "sample_path": "reproduction/samples/celeba_ddim/celeba_ddim_100.png"
+  },
+  {
+    "model": "celeba256",
+    "ddim_steps": 200,
+    "batch_size": 4,
+    "eta": 0.0,
+    "seed": 20260417,
+    "latent_shape": "3x64x64",
+    "denoise_sec": 4.348396840039641,
+    "decode_sec": 0.040977809112519026,
+    "total_sec": 4.38937464915216,
+    "sec_per_image": 1.09734366228804,
+    "images_per_second": 0.911291543721981,
+    "sample_path": "reproduction/samples/celeba_ddim/celeba_ddim_200.png"
+  }
+]

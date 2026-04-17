@@ -33,9 +33,13 @@
 
 \section{复现目标}
 
-Rombach 等人在 CVPR 2022 论文 \emph{High-Resolution Image Synthesis with Latent Diffusion Models} 中提出：先用感知自编码器把图像压缩到低维 latent 空间，再在 latent 空间训练扩散模型，可以在保留视觉质量的同时显著降低扩散模型的训练和采样成本。本文不复现大规模扩散模型训练，而是复现论文最基础、也最关键的 first-stage 结论：适度 latent 压缩可以大幅减少表示维度，同时保持较好的图像重建质量。
+Rombach 等人在 CVPR 2022 论文 \emph{High-Resolution Image Synthesis with Latent Diffusion Models} 中提出：先用感知自编码器把图像压缩到低维 latent 空间，再在 latent 空间训练扩散模型，可以在保留视觉质量的同时显著降低扩散模型的训练和采样成本。本文不从零训练大规模扩散模型，而是围绕论文的两个核心机制做可复现实验：第一，验证 first-stage autoencoder 的压缩--重建权衡；第二，使用官方预训练 LDM 复现 DDIM 采样步数与推理速度、样本质量之间的权衡。
 
-具体实验为：使用官方 CompVis 代码和官方预训练 KL autoencoder，比较 \texttt{kl-f4}、\texttt{kl-f8}、\texttt{kl-f16} 三个下采样因子模型的重建质量、latent 表示大小和推理吞吐量，并与论文模型库表格中的 KL autoencoder 结果进行对照。
+具体实验包括：
+\begin{itemize}
+  \item 使用官方预训练 KL autoencoder，比较 \texttt{kl-f4}、\texttt{kl-f8}、\texttt{kl-f16} 三个下采样因子模型的重建质量、latent 表示大小和推理吞吐量。
+  \item 使用官方 CelebA-HQ 256 无条件 LDM checkpoint，比较 DDIM steps 为 10、20、50、100、200 时的采样速度和生成样本。
+\end{itemize}
 
 \section{实验设置}
 
@@ -46,6 +50,7 @@ Rombach 等人在 CVPR 2022 论文 \emph{High-Resolution Image Synthesis with La
   \item \texttt{models/first\_stage\_models/kl-f4/model.ckpt}
   \item \texttt{models/first\_stage\_models/kl-f8/model.ckpt}
   \item \texttt{models/first\_stage\_models/kl-f16/model.ckpt}
+  \item \texttt{models/ldm/celeba256/model.ckpt}
 \end{itemize}
 
 本次快速复现使用官方源码 \texttt{src/assets} 中的 12 张示例图像，统一 resize 并 center crop 到 $256\times256$。输入像素值映射到 $[-1,1]$ 后输入 autoencoder，重建结果再映射回 $[0,1]$。实验环境为 \texttt{DDCSR} conda 环境，PyTorch 2.4.1，CUDA 12.1，GPU 为 NVIDIA H100 PCIe。复现实验命令为：
@@ -55,7 +60,15 @@ conda run -n DDCSR python reproduction/run_autoencoder_tradeoff.py \
   --device cuda:1 --batch-size 4 --num-images 12
 \end{verbatim}
 
-计算指标包括均方误差 MSE、PSNR、一个轻量全局 SSIM 指标、latent 表示元素数量、latent/像素表示比例和端到端 images/s。论文对照值取自官方 README 中 first-stage KL autoencoder 表格，即论文 Table 8 对应模型库结果。需要强调的是，本文指标和论文指标不是同一测试协议下的逐项复算：本文使用 12 张官方示例图做快速验证，论文结果来自大规模验证集和官方评价流程。因此下表用于比较趋势，而不是声称本文 PSNR 应当与论文 PSNR 完全一致。
+LDM 采样实验使用官方 CelebA-HQ 256 无条件模型，采样时切换到 checkpoint 中的 EMA 权重。实验固定 batch size 为 4、DDIM $\eta=0$、随机种子为 20260417，并丢弃一次 5-step warmup 后再计时。由于官方 DDIM sampler 默认使用 \texttt{cuda} 设备，本次运行通过 \texttt{CUDA\_VISIBLE\_DEVICES=1} 指向空闲 H100：
+
+\begin{verbatim}
+CUDA_VISIBLE_DEVICES=1 conda run -n DDCSR \
+  python reproduction/run_ldm_sampling_benchmark.py \
+  --steps 10 20 50 100 200 --batch-size 4 --eta 0.0 --device cuda
+\end{verbatim}
+
+autoencoder 实验指标包括 MSE、PSNR、一个轻量全局 SSIM 指标、latent 表示元素数量、latent/像素表示比例和端到端 images/s。论文对照值取自官方 README 中 first-stage KL autoencoder 表格，即论文 Table 8 对应模型库结果。需要强调的是，本文指标和论文指标不是同一测试协议下的逐项复算：本文使用 12 张官方示例图做快速验证，论文结果来自大规模验证集和官方评价流程。因此下表用于比较趋势，而不是声称本文 PSNR 应当与论文 PSNR 完全一致。
 
 \section{数值结果}
 
@@ -92,6 +105,35 @@ conda run -n DDCSR python reproduction/run_autoencoder_tradeoff.py \
 \caption{输入图像与三个 KL autoencoder 的重建结果。$f=4$ 细节保留最好；更强压缩会带来纹理和边缘细节损失。}
 \end{figure}
 
+\begin{table}[htbp]
+\centering
+\small
+\caption{官方 CelebA-HQ 256 LDM 的 DDIM 采样运行时。每组生成 4 张图，计时包含 latent denoising 和 first-stage decode，并已丢弃一次 warmup。}
+\begin{tabular}{rrrrr}
+\toprule
+DDIM steps & 总时间(s) & 单图时间(s/img) & 吞吐量(img/s) & decode 时间(s) \\
+\midrule
+10  & 0.282 & 0.071 & 14.17 & 0.041 \\
+20  & 0.474 & 0.119 &  8.44 & 0.041 \\
+50  & 1.122 & 0.280 &  3.57 & 0.041 \\
+100 & 2.274 & 0.568 &  1.76 & 0.041 \\
+200 & 4.389 & 1.097 &  0.91 & 0.041 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{FIG/ddim_sampling_runtime.png}
+\caption{DDIM steps 与采样速度的关系。步数增加时，单图时间近似线性上升，吞吐量下降。}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.92\linewidth]{FIG/ddim_steps_samples.png}
+\caption{同一初始噪声下不同 DDIM steps 的 CelebA-HQ LDM 生成结果。少步数采样速度快，但局部结构和纹理更不稳定；更多步数带来更充分的去噪过程。}
+\end{figure}
+
 \section{与论文结论的比较}
 
 论文的结论不是简单追求最小 latent，而是在重建质量、语义保真和扩散模型计算成本之间寻找折中。本文复现实验支持这一点：
@@ -100,13 +142,14 @@ conda run -n DDCSR python reproduction/run_autoencoder_tradeoff.py \
   \item \textbf{适度压缩保留质量。} \texttt{kl-f4} 的 latent 仅为像素表示的 6.25\%，但在本文样本上仍达到 32.07 dB PSNR 和 0.995 SSIM；论文模型库中 \texttt{kl-f4} 也给出最高的 KL 组 PSNR 27.53 和最低 rFID 0.27。
   \item \textbf{过强压缩降低重建细节。} 从 \texttt{kl-f4} 到 \texttt{kl-f8}/\texttt{kl-f16}，本文 PSNR 分别下降约 3.74 dB 和 4.59 dB，视觉上边缘和局部纹理更容易变平滑。
   \item \textbf{latent 空间带来计算收益。} 在本机 H100 上，吞吐量从 \texttt{kl-f4} 的 14.58 images/s 提升到 \texttt{kl-f8} 的 65.95 images/s、\texttt{kl-f16} 的 90.26 images/s。尽管该吞吐量只测 autoencoder 前向过程，不等同于完整 LDM 采样速度，但它反映了更小 latent 空间的计算优势。
+  \item \textbf{DDIM 步数形成速度--质量权衡。} CelebA-HQ LDM 采样中，10 steps 的单图时间为 0.071 s，而 200 steps 增加到 1.097 s。该趋势对应论文 Fig. 6 的基本观察：增加 denoising steps 通常改善采样过程，但会按步数增加计算成本。
 \end{itemize}
 
-需要注意，本文没有复现完整 ImageNet-val reconstruction FID，也没有训练 diffusion prior。严格复现论文 Fig. 5、Fig. 6 或 Table 1/3 需要大规模训练和 5k--50k 生成样本评估。本文完成的是 first-stage 数值仿真，验证了 LDM 方案成立的前提：latent autoencoder 在较低维空间中保持足够高的视觉重建质量。
+需要注意，本文没有复现完整 ImageNet-val reconstruction FID，也没有对 CelebA-HQ 生成样本计算 5k--50k FID。严格复现论文 Fig. 5、Fig. 6 或 Table 1/3 需要大规模训练、真实数据集统计和大量生成样本。本文完成的是小规模但端到端的核心机制验证：latent autoencoder 在较低维空间中保持足够高的视觉重建质量，官方 LDM checkpoint 能在 latent 空间通过 DDIM 快速采样，且采样步数直接决定速度成本。
 
 \section{结论}
 
-本次复现使用官方代码和官方 KL autoencoder checkpoint，得到与论文一致的核心趋势：\texttt{f=4} 的 mild compression 在保真度上最好，同时已把表示规模压缩到像素空间的 6.25\%；更大的 $f$ 进一步降低表示规模和提高速度，但会牺牲重建细节。这支持论文选择在 latent 空间训练扩散模型的核心理由，即把扩散模型从高维像素空间迁移到感知等价但计算更低的 latent 空间。
+本次复现使用官方代码、官方 KL autoencoder checkpoint 和官方 CelebA-HQ LDM checkpoint，得到与论文一致的两个核心趋势：\texttt{f=4} 的 mild compression 在保真度上最好，同时已把表示规模压缩到像素空间的 6.25\%；DDIM 采样步数越多，生成过程耗时越高。二者共同支持论文选择在 latent 空间训练扩散模型的核心理由，即把扩散模型从高维像素空间迁移到感知等价但计算更低的 latent 空间，并通过可调采样步数在速度和质量之间折中。
 
 后续若要做更严格的论文级比较，建议使用 ImageNet-val 或 OpenImages validation 子集，生成至少数千张重建图，补充 rFID/LPIPS，并进一步复现 \texttt{LDM-4} 或 \texttt{LDM-8} 的 DDIM 采样 FID。
 
