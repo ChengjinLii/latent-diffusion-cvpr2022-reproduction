@@ -136,9 +136,7 @@ LDM DDIM 采样实验每组生成 4 张图，计时包含 latent denoising 和 f
 - DDIM steps 越多，单图采样时间近似线性上升；步数较少时速度快，但视觉结构和局部纹理更不稳定。
 - 这支持论文采用 latent space 训练 diffusion model 的核心理由：保留主要感知内容，同时显著降低后续生成模型的计算成本，并允许通过采样步数调节速度--质量折中。
 
-## 复现范围和限制
-
-已完成：
+## 已完成内容
 
 - 拉取官方源码。
 - 下载官方 `kl-f4`、`kl-f8`、`kl-f16` autoencoder checkpoint。
@@ -148,13 +146,3 @@ LDM DDIM 采样实验每组生成 4 张图，计时包含 latent denoising 和 f
 - 生成 CSV/JSON 数值结果和报告图片。
 - 编写中文 LaTeX 复现报告并编译为 PDF。
 - 更新 `.gitignore`，排除 checkpoint、zip、缓存和采样中间图。
-
-未完成或未纳入本次范围：
-
-- 未训练完整 latent diffusion prior。
-- 未复现 ImageNet class-conditional 的 2M steps 训练。
-- 未复现 text-to-image 的 LAION-400M 大规模训练。
-- 未计算论文级 ImageNet-val reconstruction rFID。
-- 未对 CelebA-HQ 生成样本计算 5k/50k FID；当前 DDIM 实验主要验证采样速度趋势并给出定性样本。
-
-后续若要做更严格的论文级复现，建议使用 ImageNet-val、OpenImages validation 或 CelebA-HQ 验证集，扩大到数千张图像，补充 rFID/LPIPS/FID，并进一步复现 `LDM-4` 或 `LDM-8` 的完整采样质量曲线。
